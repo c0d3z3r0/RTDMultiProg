@@ -177,7 +177,7 @@ def program_flash(data, progress_callback=lambda s, e, c: None):
     print(f"Chip CRC: {chip_crc:#04x}")
     return data_crc == chip_crc
 
-def read_flash(chip_size, progress_callback=lambda s, e, c: None):
+def read_flash(fr, chip_size, progress_callback=lambda s, e, c: None):
     print(f"Will read {chip_size / 1024:.1f} KiB")
     data = []
 
@@ -185,7 +185,10 @@ def read_flash(chip_size, progress_callback=lambda s, e, c: None):
     poll(lambda: not read_reg(0x60)[0] & 0x01, "Read Instruction Timeout")
     for address in range(0, chip_size, PAGE_SIZE):
         progress_callback(0, chip_size, address)
-        data += read_reg(0x70, min(chip_size - address, PAGE_SIZE)) # If amount to read is more than PAGE_SIZE byte then read PAGE_SIZE, else read remaining amount
+        d = read_reg(0x70, min(chip_size - address, PAGE_SIZE)) # If amount to read is more than PAGE_SIZE byte then read PAGE_SIZE, else read remaining amount
+        fr.write(bytearray(d))
+        fr.flush()
+        data += d
 
     progress_callback(0, chip_size, chip_size) # Signal 100% to progress function
 
@@ -265,8 +268,8 @@ def stop_interface():
 
 def read_flash_file(filename, callback=None):
     with open(filename, "wb") as fr:
-        buf, crc_ok = read_flash(READ_SIZE, callback)
-        fr.write(bytearray(buf))
+        buf, crc_ok = read_flash(fr, READ_SIZE, callback)
+        #fr.write(bytearray(buf))
         return crc_ok
 
 def write_flash_file(filename, callback=None):
